@@ -2,17 +2,15 @@
 #include <fcntl.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include "mystruct.h"
 
-/* this user app calls system calls which gets served from kernel by charater driver which we registered in module */
-/* compile: [ make userapp.c ], then run [ ./userapp ] */
-
-#define DEVICE_FILE	"/dev/mychardev"
+#define DEVICE_FILE	"/dev/mystruct"
 
 int main()
 {
 	int fd;
 	int retval;
-	char buffer[10];
+	abc user_struct = {5, 'a'};
 
 	printf("Opening File:%s\n", DEVICE_FILE);
 	fd = open(DEVICE_FILE, O_RDWR);
@@ -24,12 +22,16 @@ int main()
 
 	getchar();
 
-	retval = write(fd, "hello", 5);
+
+	retval = write(fd, &user_struct, sizeof(user_struct));
 	printf("Write retval:%d\n", retval);
 	getchar();
 
-	retval = read(fd, buffer, 10);
-	printf("Read retval:%d\n", retval);
+	user_struct.i = 4;
+	user_struct.c = 'b';
+
+	retval = read(fd, &user_struct, sizeof(user_struct));
+	printf("Read retval:%d\t int:%d\tchar:%c\n", retval, user_struct.i, user_struct.c);
 	getchar();
 	
 	printf("Closing File\n");
