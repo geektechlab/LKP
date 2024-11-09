@@ -5,12 +5,6 @@
 #include <linux/device.h>
 #include <linux/cdev.h>
 
-/* create, initialize and add device in kernel space */
-/* [ make ] */
-/* [ sudo insmod ./hello.ko ] */
-/* [ ls /dev/mychardev ] */
-/* [ sudo chmod 666 /dev/mychardev ] */
-
 int base_minor = 0;
 char *device_name = "mychardev";
 int count = 1;
@@ -25,27 +19,61 @@ MODULE_LICENSE("GPL");
 static int device_open(struct inode *inode, struct file *file)
 {
 	pr_info("%s\n", __func__);
+
+	if ((file->f_flags & O_ACCMODE) == O_RDONLY) {
+		pr_info("Opened File in Read only mode\n");
+	}else if ((file->f_flags & O_ACCMODE) == O_WRONLY) {
+		pr_info("Opened File in Write only mode");
+	}
+	else if ((file->f_flags & O_ACCMODE) == O_RDWR) {
+		pr_info("Opened File in Read/Write mode");
+	}
+
+	if (file->f_flags & O_CREAT) {
+		pr_info( "Create if it does not exist");
+	}
+
+	if (file->f_flags & O_EXCL) {
+		pr_info( "Provide exclusive access");
+	}
+
+	if (file->f_flags & O_TRUNC) {
+		pr_info( "Truncate the file to zero size first");
+	}
+
+	if (file->f_flags & O_APPEND) {
+		pr_info( "Append to the file (don't overwrite)");
+	}
+
+	if (file->f_flags & O_NONBLOCK) {
+		pr_info( "Access methods are non-blocking");
+	}
+	if (file->f_flags & O_SYNC) {
+		pr_info( "O_SYNC");
+	}
+
+	pr_info("File Offset:%llu\n", file->f_pos);
 	return 0;
 }
 
 static int device_release(struct inode *inode, struct file *file)
 {
 	pr_info("%s\n", __func__);
-        return 0;
+	return 0;
 }
 
 static ssize_t device_read(struct file *file, char __user *user_buffer,
-                      size_t count, loff_t *offset)
+		size_t count, loff_t *offset)
 {
 	pr_info("%s\n", __func__);
-        return 0;
+	return 0;
 }
 
 static ssize_t device_write(struct file *file, const char __user *user_buffer,
-                       size_t count, loff_t *offset)
+		size_t count, loff_t *offset)
 {
 	pr_info("%s\n", __func__);
-        return count;
+	return count;
 }
 
 struct file_operations device_fops = {
@@ -63,7 +91,7 @@ static int test_hello_init(void)
 		printk("Device number registered\n");
 		printk("Major number received:%d\n", MAJOR(devicenumber));
 
-		device = device_create(class, NULL, devicenumber, NULL, device_name);
+		device = device_create(class, NULL, devicenumber, NULL, "mydevice");
 		cdev_init(&mycdev, &device_fops);
 		mycdev.owner = THIS_MODULE;
 		cdev_add(&mycdev, devicenumber, count);
@@ -78,7 +106,7 @@ static int test_hello_init(void)
 static void test_hello_exit(void)
 {
 	device_destroy(class, devicenumber);
-        class_destroy(class);
+	class_destroy(class);
 	cdev_del(&mycdev);
 	unregister_chrdev_region(devicenumber, count);
 }

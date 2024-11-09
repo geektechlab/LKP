@@ -1,0 +1,34 @@
+lsmod – List Modules that Loaded Already
+insmod – Insert Module into Kernel
+modinfo – Display Module Info
+rmmod – Remove Module from Kernel
+modprobe – Add or Remove modules from the kernel. Loads the module only in /lib/modules/$(uname -r) 'modprobe /home/test/hello.ko' will not work. modprobe calculates dependencies, loads the dependencies and then the main module.
+
+GCC Attribute alias allows you to specify multiple aliases(other names) for a symbol (function/variable).
+
+To pass array we need to use module_param_array() function instead of module_param() function
+#define module_param(name, type, perm)
+ * module_param_array - a parameter which is an array of some type
+ * @name: the name of the array variable
+ * @type: the type, as per module_param()
+ * @nump: optional pointer filled in with the number written
+ * @perm: visibility in sysfs
+#define module_param_array(name, type, nump, perm) 
+sudo insmod ./parameter_array.ko param_array=1,2,4
+
+==========================
+What is Symbol table?
+==========================
+Data Structure created by compiler containing all the symbols used in the program. Every kernel image that you build has a symbol table with it. The Linux kernel symbol table contains names and addresses of all the kernel symbols. When you install the kernel it will be present in /boot/System.map-<linux_version>. System.map-<linux_version> is generated while compiling kernel. When we install it, it resides in boot folder.
+
+When you define a new function in your module, the default behavior of this function is local, only the module in which the function is defined can access it, cannot be accessed by other modules. To export this module we need to use EXPORT_SYMBOL or EXPORT_SYMBOL_GPL. Once you export them, they will be available to other modules to use.
+
+/proc/kallsyms: Contains symbols of dynamically loaded modules as well as builtin modules
+System.map: Contains symbols of only builtin modules. Because System.map-<linux_version> is generated while compiling kernel. When we install it, it resides in boot folder.
+
+$cat /boot/System.map-* | grep ttyprintk_exit
+$cat /proc/kallsyms | grep ttyprintk_exit
+
+To verify if the print_jiffies symbol has added to the symbol table. Only this will contain symbols of print_jiffies
+cat /proc/kallsyms | grep print_jiffies
+System.map-<linux_version> will not contain
