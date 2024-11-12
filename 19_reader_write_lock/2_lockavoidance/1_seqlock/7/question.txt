@@ -1,0 +1,7 @@
+Limitations
+===========
+
+Seqlocks cannot be used for pointers, it can only be used for normal data like integers, booleans
+
+Why?
+
