@@ -1,7 +1,0 @@
-Limitations
-===========
-
-Seqlocks cannot be used for pointers, it can only be used for normal data like integers, booleans
-
-There can be pointer which can be already freed, dereferencing such pointer will cause oops
-

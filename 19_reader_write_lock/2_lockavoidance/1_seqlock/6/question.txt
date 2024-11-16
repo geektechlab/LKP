@@ -1,6 +1,0 @@
-Is Kernel Preemption Disabled?
-===============================
-
-        Readers: Yes/No 
-        Writers: Yes/No
-
