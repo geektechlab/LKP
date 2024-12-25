@@ -24,6 +24,6 @@ int main()
 
 	getchar();
 	printf("IOWR(MAGIC_NUMBER2, 3, int):%lx\n", _IOWR(MAGIC_NUMBER2, 4, int));
-	return 0;
 
+	return 0;
 }

@@ -17,7 +17,6 @@ module_param(device_name, charp, 0);
 MODULE_LICENSE("GPL");
 static int test_hello_init(void)
 {
-
 	devicenumber = MKDEV(major_number, minor_number);
 	printk("Major Number :%d\n", MAJOR(devicenumber));
 	printk("Minor Number :%d\n", MINOR(devicenumber));

@@ -32,7 +32,7 @@ int main()
 		printf("Read buffer:%c\n", buffer[0]);
 		getchar();
 	}
-	
+
 	printf("Closing File\n");
 	close(fd);
 	getchar();

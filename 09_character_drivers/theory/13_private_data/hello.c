@@ -16,6 +16,7 @@ dev_t devicenumber;
 static struct class *class = NULL;
 static struct device *device = NULL;
 #define MAX_SIZE        1024
+
 struct msg_device
 {
 	struct cdev mycdev;
@@ -52,7 +53,7 @@ static ssize_t device_read(struct file *file, char __user *user_buffer,
 	struct msg_device *my_device = (struct msg_device *)file->private_data;
 
 	pr_info("%s read offset:%lld\n", __func__, *offset);
-	 available_space = MAX_SIZE - *(offset);
+	available_space = MAX_SIZE - *(offset);
 
 	if (read_count < available_space)
 		bytes_to_read = read_count;
@@ -66,10 +67,9 @@ static ssize_t device_read(struct file *file, char __user *user_buffer,
 	}
 
 	if (buffer_index > *offset)
-                bytes_to_read = buffer_index - *offset;
-        else
-                return 0;
-
+        bytes_to_read = buffer_index - *offset;
+    else
+        return 0;
 
 	bytes_read = bytes_to_read - copy_to_user(user_buffer, my_device->kernel_buffer+*offset, bytes_to_read);
 	pr_info("%s: Copy to user returned:%d\n", __func__, bytes_to_read);
@@ -77,7 +77,7 @@ static ssize_t device_read(struct file *file, char __user *user_buffer,
 	//update file offset
 	*offset += bytes_read;
 
-        return bytes_read;
+    return bytes_read;
 }
 
 static ssize_t device_write(struct file *file, const char __user *user_buffer,
@@ -110,7 +110,8 @@ static ssize_t device_write(struct file *file, const char __user *user_buffer,
 	//update file offset
 	*offset += bytes_written;
 	buffer_index += bytes_written;
-        return bytes_written;
+
+    return bytes_written;
 }
 
 static loff_t device_lseek(struct file *file, loff_t offset, int orig)
@@ -160,7 +161,6 @@ static int test_hello_init(void)
 			msg_devices[i].mycdev.owner = THIS_MODULE;
 			cdev_add(&msg_devices[i].mycdev, tmp_device, 1);
 		}
-
 	}
 	else
 		printk("Device number registration Failed\n");
@@ -173,12 +173,13 @@ static void test_hello_exit(void)
 	int major = MAJOR(devicenumber);
 	int i = 0;
 	dev_t tmp_device;
+
 	for (i = 0; i < MAX_DEVICES; i++) {
 		tmp_device = MKDEV(major, i);
 		device_destroy(class, tmp_device);
 		cdev_del(&msg_devices[i].mycdev);
 	}
-	
+
 	class_destroy(class);
 	unregister_chrdev_region(devicenumber, count);
 }

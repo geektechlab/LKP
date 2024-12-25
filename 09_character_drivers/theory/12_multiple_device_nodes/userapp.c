@@ -24,12 +24,14 @@ int main(int argc, char *argv[])
 	}
 
 	printf("write : %d\n", write(fd1, "hello world", sizeof("hello world")));	
+
 	lseek(fd2, 0, SEEK_SET);
 	perror("lseek");
 	memset(buffer, 0, sizeof(buffer));
 	length = read(fd2, buffer, sizeof(buffer));
 	buffer[length] = '\0';
 	printf("Read:%s\t length:%d\n", buffer, length);
+
 	close(fd1);
 	close(fd2);
 }

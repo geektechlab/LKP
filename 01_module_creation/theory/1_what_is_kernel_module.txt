@@ -73,7 +73,3 @@ CONFIG_MODULES=y
 
 we can check it at
 	cat /boot/config-`uname -r` | grep CONFIG_MODULES
-
-
-
-

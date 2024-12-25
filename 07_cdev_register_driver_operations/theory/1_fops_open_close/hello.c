@@ -49,7 +49,6 @@ struct file_operations device_fops = {
 	.release = device_release
 };
 
-
 static int test_hello_init(void)
 {
 	class = class_create(THIS_MODULE, "myclass");

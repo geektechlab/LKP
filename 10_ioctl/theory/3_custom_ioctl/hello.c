@@ -68,7 +68,7 @@ static ssize_t device_read(struct file *file, char __user *user_buffer,
 	//update file offset
 	*offset += bytes_read;
 
-        return bytes_read;
+    return bytes_read;
 }
 
 static ssize_t device_write(struct file *file, const char __user *user_buffer,
@@ -102,14 +102,12 @@ static ssize_t device_write(struct file *file, const char __user *user_buffer,
         return bytes_written;
 }
 
-
 long device_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 {
 	pr_info("%s: Cmd:%u\t Arg:%lu\n", __func__, cmd, arg);
 
 	return 0;
 }
-
 
 struct file_operations device_fops = {
 	.read = device_read,
@@ -118,7 +116,6 @@ struct file_operations device_fops = {
 	.release = device_release,
 	.unlocked_ioctl = device_ioctl	
 };
-
 
 static int test_hello_init(void)
 {
@@ -132,7 +129,6 @@ static int test_hello_init(void)
 		cdev_init(&mycdev, &device_fops);
 		mycdev.owner = THIS_MODULE;
 		cdev_add(&mycdev, devicenumber, count);
-
 	}
 	else
 		printk("Device number registration Failed\n");
@@ -143,7 +139,7 @@ static int test_hello_init(void)
 static void test_hello_exit(void)
 {
 	device_destroy(class, devicenumber);
-        class_destroy(class);
+    class_destroy(class);
 	cdev_del(&mycdev);
 	unregister_chrdev_region(devicenumber, count);
 }

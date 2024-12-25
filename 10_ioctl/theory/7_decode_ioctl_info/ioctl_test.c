@@ -39,7 +39,7 @@ int main()
 	printf("Size:%u\n", _IOC_SIZE(CMD1));
 	printf("Size:%lu\n", _IOC_SIZE(CMD2));
 	printf("Size:%lu\n", _IOC_SIZE(CMD3));
-	
+
 	printDirection(CMD1);
 	printDirection(CMD2);
 	printDirection(CMD3);

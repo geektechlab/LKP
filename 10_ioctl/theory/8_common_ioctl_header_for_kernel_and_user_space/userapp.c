@@ -17,6 +17,7 @@ int main(int argc, char *argv[])
 		perror("fd failed");
 		exit(2);
 	}
+
 	//Get Length  - 0x01
 	ioctl(fd, MSG_IOCTL_GET_LENGTH, &length);
 	printf("Length:%u\n", length);

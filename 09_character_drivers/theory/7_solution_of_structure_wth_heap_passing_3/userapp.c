@@ -27,7 +27,6 @@ int main()
 
 	getchar();
 
-
 	retval = write(fd, &user_struct, sizeof(user_struct));
 	printf("Write retval:%d\n", retval);
 	getchar();
@@ -39,7 +38,7 @@ int main()
 	printf("Write retval:%d\n", retval);
 	printf("Int:%d\t Str:%s\n", user_struct.i, user_struct.str);
 	getchar();
-	
+
 	printf("Closing File\n");
 	close(fd);
 	getchar();

@@ -15,7 +15,6 @@ dev_t dev1, dev2;
 
 static int test_hello_init(void)
 {
-
     dev1 = MKDEV(200, 1);
     dev2 = MKDEV(200, 2);
 

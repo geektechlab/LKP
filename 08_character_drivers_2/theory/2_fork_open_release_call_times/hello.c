@@ -61,7 +61,6 @@ static int test_hello_init(void)
 		cdev_init(&mycdev, &device_fops);
 		mycdev.owner = THIS_MODULE;
 		cdev_add(&mycdev, devicenumber, count);
-
 	}
 	else
 		printk("Device number registration Failed\n");

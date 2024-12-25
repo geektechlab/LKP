@@ -45,15 +45,12 @@ static ssize_t device_write(struct file *file, const char __user *user_buffer,
         return count;
 }
 
-
-
 struct file_operations device_fops = {
 	.read = device_read,
 	.write = device_write,
 	.open = device_open,
 	.release = device_release
 };
-
 
 static int test_hello_init(void)
 {
@@ -67,7 +64,6 @@ static int test_hello_init(void)
 		cdev_init(&mycdev, &device_fops);
 		mycdev.owner = THIS_MODULE;
 		cdev_add(&mycdev, devicenumber, count);
-
 	}
 	else
 		printk("Device number registration Failed\n");

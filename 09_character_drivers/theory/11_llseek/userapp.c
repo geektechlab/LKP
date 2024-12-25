@@ -14,8 +14,10 @@ int main(int argc, char *argv[])
 		perror("fd failed");
 		exit(2);
 	}
+
 	printf("write : %d\n", write(fd, "hello world", sizeof("hello world")));	
 	printf("write : %d\n", write(fd, "bye world", sizeof("bye world")));	
+
 	//set the file position to 0
 	lseek(fd, 0, SEEK_SET);
 	perror("lseek");
@@ -23,8 +25,10 @@ int main(int argc, char *argv[])
 	length = read(fd, buffer, sizeof(buffer));
 	buffer[length] = '\0';
 	printf("Read:%s\t length:%d\n", buffer, length);
+
 	for (i = 0 ; i < length; i++)
 		printf("buffer[%d]:\t%c\n", i, buffer[i]);
+
 	memset(buffer, 0, sizeof(buffer));
 	length = read(fd, buffer, sizeof(buffer));
 	buffer[length] = '\0';

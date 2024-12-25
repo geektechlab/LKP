@@ -68,7 +68,7 @@ static ssize_t device_read(struct file *file, char __user *user_buffer,
 	//update file offset
 	*offset += bytes_read;
 
-        return bytes_read;
+    return bytes_read;
 }
 
 static ssize_t device_write(struct file *file, const char __user *user_buffer,
@@ -166,7 +166,7 @@ static void test_hello_exit(void)
 		device_destroy(class, tmp_device);
 		cdev_del(&mycdev[i]);
 	}
-	
+
 	class_destroy(class);
 	unregister_chrdev_region(devicenumber, count);
 }

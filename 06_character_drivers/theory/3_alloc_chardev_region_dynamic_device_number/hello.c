@@ -15,7 +15,6 @@ module_param(device_name, charp, 0);
 MODULE_LICENSE("GPL");
 static int test_hello_init(void)
 {
-
 	printk("Minor Number :%d\n", base_minor);
 	printk("Count:%d\n", count);
 	printk("Device Name:%s\n", device_name);

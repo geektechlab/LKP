@@ -37,14 +37,11 @@ static ssize_t device_read(struct file *file, char __user *user_buffer,
 {
 	int retval;
 
-
 	retval = copy_to_user(&((abc *)user_buffer)->i, &kernel_struct.i, sizeof(kernel_struct.i));
 	pr_info("%s: Copy to user returned:%d\n", __func__, retval);
 
 	retval = copy_to_user(((abc *)user_buffer)->str, kernel_buffer, strlen(kernel_buffer)+1);
 	pr_info("%s: Copy to user returned:%d\n", __func__, retval);
-
-
 
 	pr_info("%s:int :%d\t str:%s \t Count:%lu \t offset:%llu\n", __func__,
 			kernel_struct.i, kernel_struct.str, count, *offset);
@@ -56,7 +53,6 @@ static ssize_t device_write(struct file *file, const char __user *user_buffer,
 {
 	int retval;
 	int string_length = 0;
-
 
 	retval = copy_from_user(&kernel_struct, user_buffer, count);
 	pr_info("%s: Copy from user returned:%d\n", __func__, retval);
@@ -87,7 +83,6 @@ static int test_hello_init(void)
 		cdev_init(&mycdev, &device_fops);
 		mycdev.owner = THIS_MODULE;
 		cdev_add(&mycdev, devicenumber, count);
-
 	}
 	else
 		printk("Device number registration Failed\n");
@@ -98,7 +93,7 @@ static int test_hello_init(void)
 static void test_hello_exit(void)
 {
 	device_destroy(class, devicenumber);
-        class_destroy(class);
+    class_destroy(class);
 	cdev_del(&mycdev);
 	unregister_chrdev_region(devicenumber, count);
 }

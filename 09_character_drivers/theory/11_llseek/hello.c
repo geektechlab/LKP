@@ -60,7 +60,6 @@ static ssize_t device_read(struct file *file, char __user *user_buffer,
         else
                 return 0;
 
-
 	bytes_read = bytes_to_read - copy_to_user(user_buffer, kernel_buffer+*offset, bytes_to_read);
 	pr_info("%s: Copy to user returned:%d\n", __func__, bytes_to_read);
 
@@ -116,6 +115,7 @@ static loff_t device_lseek(struct file *file, loff_t offset, int orig)
 			new_pos = MAX_SIZE - offset;
 			break;
 	}
+
 	if(new_pos > MAX_SIZE)
 		new_pos = MAX_SIZE;
 	if(new_pos < 0)
@@ -144,7 +144,6 @@ static int test_hello_init(void)
 		cdev_init(&mycdev, &device_fops);
 		mycdev.owner = THIS_MODULE;
 		cdev_add(&mycdev, devicenumber, count);
-
 	}
 	else
 		printk("Device number registration Failed\n");
@@ -155,7 +154,7 @@ static int test_hello_init(void)
 static void test_hello_exit(void)
 {
 	device_destroy(class, devicenumber);
-        class_destroy(class);
+    class_destroy(class);
 	cdev_del(&mycdev);
 	unregister_chrdev_region(devicenumber, count);
 }

@@ -21,7 +21,6 @@ int main()
 
 	getchar();
 
-
 	retval = write(fd, &value, sizeof(value));
 	printf("Write retval:%d\n", retval);
 	getchar();

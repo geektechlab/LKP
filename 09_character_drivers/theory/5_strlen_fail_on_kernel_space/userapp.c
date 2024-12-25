@@ -29,7 +29,6 @@ int main()
 	printf("Write retval:%d\n", retval);
 	getchar();
 
-	
 	printf("Closing File\n");
 	close(fd);
 	getchar();

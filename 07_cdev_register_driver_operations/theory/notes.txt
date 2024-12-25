@@ -58,4 +58,3 @@ Steps in creating a character driver
 1. Allocate a device number dynamically or statically (dev_t)
 2. Initializing the character device with its file operations (struct cdev, struct file_operations)
 3. Registering the character device with Linux Kernel (cdev_add)
-
