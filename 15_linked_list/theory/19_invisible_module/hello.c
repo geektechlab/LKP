@@ -18,7 +18,6 @@ void unhide_module(void) {
 	list_add(&THIS_MODULE->list, module_previous);
 }
 
-
 static int hiding_thread(void *data)
 {
 	while(!kthread_should_stop()) {
@@ -46,4 +45,3 @@ static void test_tasks_exit(void)
 
 module_init(test_tasks_init);
 module_exit(test_tasks_exit);
-

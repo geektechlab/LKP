@@ -22,7 +22,6 @@ static int test_hello_init(void)
 
 static void test_hello_exit(void)
 {
-
 }
 
 module_init(test_hello_init);

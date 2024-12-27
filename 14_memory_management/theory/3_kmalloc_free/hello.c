@@ -6,7 +6,6 @@
 #include <linux/cdev.h>
 #include <linux/slab.h>
 
-
 int base_minor = 0;
 char *device_name = "mychardev";
 int count = 1;

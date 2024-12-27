@@ -23,7 +23,6 @@ static int debug_show(struct seq_file *m, void *v)
 static int my_open(struct inode *inode, struct file *file)
 {
 	return single_open(file, debug_show, NULL);
-
 }
 
 static ssize_t proc_write_debug(struct file * file, const char *buffer, size_t count, loff_t * data)
@@ -40,8 +39,8 @@ static ssize_t proc_write_debug(struct file * file, const char *buffer, size_t c
 		buf[count] = '\0';
 		debug_level = simple_strtoul(buf, NULL, 10);
 	}
-	return count;
 
+	return count;
 }
 
 static struct file_operations debug_ops = {
@@ -103,7 +102,6 @@ static ssize_t device_read(struct file *file, char __user *user_buffer,
                 bytes_to_read = buffer_index - *offset;
         else
                 return 0;
-
 
 	bytes_read = bytes_to_read - copy_to_user(user_buffer, kernel_buffer+*offset, bytes_to_read);
 	if (debug_level > 0)
