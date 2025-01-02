@@ -8,7 +8,6 @@ void msleep(unsigned int msecs)
                 timeout = schedule_timeout_uninterruptible(timeout);
 }
 
-
 unsigned long msleep_interruptible(unsigned int msecs)
 {
         unsigned long timeout = msecs_to_jiffies(msecs) + 1;
@@ -26,4 +25,3 @@ static inline void ssleep(unsigned int seconds)
 {
         msleep(seconds * 1000);
 }
-

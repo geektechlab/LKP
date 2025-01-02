@@ -13,7 +13,6 @@ static irqreturn_t handler(int irq, void *dev)
 	return IRQ_NONE;
 }
 
-
 static int myinit(void)
 {
 	int ret, i;
