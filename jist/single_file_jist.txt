@@ -4833,3 +4833,716 @@ Advantages of Inline Assembly:
         a pointer to a struct containing a varying sized integral type.
 
 60)
+    Kernel Symbols: A symbol is either a variable or function. It is name representing an space in memory which stores data (variable for reading/writing) or instructions(function for executing). Kernel Symbols are visible at three different levels in the kernel source code.
+        1. static  : visible only within their own source file
+        2. extern  : visible to any other code built into the kernel
+        3. exported: visible and available to any loadable module. Kernel code can make a symbol available to loadable modules with the EXPORT_SYMBOL() and EXPORT_SYMBOL_GPL() macros
+
+    Kernel Symbol Table:
+        1. System.map    : Contains symbols exported by code built into the kernel
+        2. /proc/kallsyms: Contains symbols exported by code built into the kernel + loadable kernel modules
+
+    How do you find out whether a function is static or global by looking into /proc/kallsyms?
+        $ cat /proc/kallsysms | grep <function_name>
+        $ cat /proc/kallsyms | grep msleep
+    If you observe 't' it is static and 'T' then it is global symbol
+        $ cat /proc/kallsyms | grep crc32c_mod_init
+        /proc/kallsysms follows nm syntax
+    All exported symbols will have another symbol prefixed with __ksymtab_
+
+    A peek inside a LKM: All modules have their own symbols. Suppose we have a module hello.ko, with a lot of functions, variables and so on. After compiling it and obtaining the module’s object file, we can get a list of its symbols by running nm.
+        $ nm ./hello.ko
+            U -> Undefined
+        $ nm ./hello.ko | grep static
+            0000000000000000 d static_var
+        $ nm ./hello.ko | grep global
+            0000000000000000 T global_fn
+            0000000000000004 D global_var
+        $ nm ./hello.ko | grep local
+    You cannot access to local variables from object files, because gcc does not save information about it.
+
+    kallsyms_lookup_name:
+        unsigned long kallsyms_lookup_name(const char *name);
+    This takes symbol name as argument and returns its address in memory. The calling code can dereference the pointer to make use of that symbol. If the symbol isn’t found, the function returns NULL.
+        $ sudo cat /proc/kallsyms | grep sys_call_table
+
+    Dynamically find the address at which the kernel is loaded:
+        $ sudo cat /proc/iomem | grep -i kernel
+
+    kallsyms_on_each_symbol: Can be used to dump all the kernel symbols along with their addresses.
+        int kallsyms_on_each_symbol(int (*fn)(void *, const char *, struct module *, unsigned long), void *data);
+        fn -> callback function that is called for each symbol. callback function has the following prototype:
+            int fn(void *data, const char *sym_name, struct module *module, unsigned long address);
+        data: will contain pointer to your private data you passed as last argument to kallsyms_on_each_symbol()
+        sym_name: will contain name of current kernel symbol
+        module: name of the module
+        address: will contain address of current kernel symbol
+
+    Can i find the size of the function? Yes, using sprint_symbol.
+        int sprint_symbol(char *buffer, unsigned long address);
+    This function looks up a kernel symbol with 'address' and stores its name, offset, size, module name to buffer. If no symbol was found just saves its 'address' as is. This function returns the number of bytes stored in 'buffer'
+
+    symbol_name+offset/size [module_name]
+
+61)
+    Can i use the function pointer returned by the kallsyms_lookup_name() to call the function? Yes
+
+    Can we access non exported symbols using this logic? For example, print_cpu_info(). Yes, we can access those.
+
+    Can i update the symbol address ? Just like read, you can also write to a symbol's address.
+        Note: Be careful, some addresses are in rodata section or text section, which cannot be written If you try to write to a readonly address, you will probably get a kernel oops.
+
+    In Intel x86 CPUs, the Control Register CR0 has a special bit (called Write Protect bit), to control whether the CPU can write to read-only pages while running in privilege level 0. syscall table is inside a page that is read-only, and by default the "Write Protect" bit is set, you are prevented from writing to it.
+
+    In order to update the syscall correctly you will need to disable write protection by setting the "Write Protect" bit of the CR0 register to 0 before overwriting the table entry, and re-enable it after you're done
+
+    How do i access the parameters passed to system call ? pt_regs.
+
+62)
+    How to find out how long your system is up? Command : uptime
+        $ uptime
+            19:33:25 up  2:52,  1 user,  load average: 0.08, 0.05, 0.01
+
+    load average: 0.08, 0.05, 0.01 --- the average CPU load (average number of jobs in your system's run queue)for the 1, 5 and 15 minutes. Interpreting load average:
+        If the averages are 0.0, then your system is idle. If the 1 minute average is higher than the 5 or 15 minute averages, then load is increasing. If the 1 minute average is lower than the 5 or 15 minute averages, then load is decreasing. If they are higher than your CPU count, then you might have a performance problem
+
+    /proc/uptime: $ cat /proc/uptime
+        10354.21 61534.94
+            10354.21    --> Uptime in seconds
+            61534.94    --> Total time spent by all processors in idle process
+
+    /proc/loadavg: $ cat /proc/loadavg
+        0.07 0.02 0.00 1/672 9133
+
+    The first three fields in this file are load average figures giving the number of jobs in the run queue (state R) or waiting for disk I/O (state D) averaged over 1, 5, and 15 minutes. They are the same as the load average numbers given by uptime(1) and other programs. The fourth field consists of two numbers separated by a slash (/). The first of these is the number of currently executing kernel scheduling entities (processes, threads). The value after the slash is the number of kernel scheduling entities that currently exist on the system. The fifth field is the PID of the process that was most recently created on the system.
+
+    Epoch Time/Unix Time: Number of seconds that have elapsed since January 1 1970
+        Command: date +%s
+
+    To get the epoch time from your C Program:
+        #include <time.h>
+            time_t time(time_t *tloc);
+            time() returns the time as the number of seconds since the Epoch.
+            If tloc is non-NULL, the return value is also stored in the memory pointed to by tloc
+            Return value: On success, the value of time in seconds since the Epoch is returned.
+
+    ctime: char *ctime(const time_t *timep);
+        Header File: #include <time.h>
+        The ctime() function returns the string representing the localtime based on the argument timer.
+
+    gettimeofday(): gettimeofday() returns the current wall clock time and timezone.
+        Header File: #include <sys/time.h>
+        int gettimeofday(struct timeval *tv, struct timezone *tz);
+            The tv argument is a struct timeval and gives the number of seconds and microseconds since the Epoch
+            struct timeval {
+                time_t      tv_sec;     /* seconds */
+                suseconds_t tv_usec;    /* microseconds */
+            };
+        The tz argument is a struct timezone.
+        struct timezone {
+            int tz_minuteswest;     /* minutes west of Greenwich */
+            int tz_dsttime;         /* type of DST correction */
+        };
+        From man gettimeofday:
+            The use of the timezone structure is obsolete; the tz argument should normally  be  specified  as  NULL.
+
+    Can I use gettimeofday() to determine elapsed time? If you want to display the time to a user of your program, you query the time of day. However, if your program needs to measure elapsed time, you need a timer that will give the right answer even if the user changes the time on the system clock.
+
+    What if i change the system date using date command?
+        To stop ntp service: $sudo systemctl stop systemd-timesyncd.service
+        To start ntp service: $sudo systemctl start systemd-timesyncd.service
+
+    The familiar system clock which tells the time of day is referred to as a real-time clock or a wall-clock. To safely measure elapsed time in a program, you need a clock that ticks out time continuously, without any jumps when a user sets the system time. This kind of clock is called a monotonic clock.
+        int clock_gettime(clockid_t clk_id, struct timespec *tp);
+    The above function can be used to retrieve the time from various clocks, including the real-time clock.
+
+    clock_gettime vs gettimeofday:
+        1. Higher Precision
+            struct timespec {
+                time_t   tv_sec;        /* seconds */
+                long     tv_nsec;       /* nanoseconds */
+            };
+        2. Ability to request specific clocks.
+            The clocks are identified by a clockid_t which is the first parameter of the function.
+    For monotonic clock: clk_id = CLOCK_MONOTONIC
+
+63)
+    CLOCK_BOOTTIME: CLOCK_MONTONIC does not measure time spent in suspend, use CLOCK_BOOTTIME if you want to measure the time spend ins suspend also
+
+    CLOCK_MONOTONIC_RAW: Similar to CLOCK_MONOTONIC, but provides access to a raw hardware-based time that is not  subject to NTP adjustments. CLOCK_MONOTONIC_RAW would be relevant mainly to cases where more accurate time is wanted over very short intervals. CLOCK_MONOTONIC would be preferable for longer-term timers measured in minutes, hours or days
+
+    CLOCK_REALTIME: This clock represents the real time/wall time in the system. used for timestamping as well as providing actual time to the user. Can be both stepped and slewed by time adjustment code (e.g., NTP)
+
+    CLOCK_PROCESS_CPUTIME_ID: Per-process CPU-time clock (measures CPU time consumed by all threads in the process). Useful for finding out whether your program is spending its total time in CPU or waiting for something else( a user input).
+
+    CLOCK_THREAD_CPUTIME_ID: Measures the amount of CPU time consumed by the thread.
+
+    clock_settime: The function clock_settime() sets the the time of the specified clock clk_id
+        int clock_settime(clockid_t clk_id, const struct timespec *tp);
+
+    NTP Service status:
+        $ timedatectl status
+        $ systemctl stop systemd-timesyncd.service
+
+    clock_getres:
+        int clock_getres(clockid_t clk_id, struct timespec *res);
+            The function clock_getres() finds the resolution (precision) of the specified clock clk_id.
+
+    times() system call:
+        #include <sys/times.h>
+        clock_t times(struct tms *buf);
+            The times system call gets the user time and system time used by the current process and its children.
+        User time: Time spent by the process executing in user space
+        System Time:  Time spent by the process executing in kernel space.
+                struct tms {
+                    clock_t tms_utime;  /* user time */
+                    clock_t tms_stime;  /* system time */
+                    clock_t tms_cutime; /* user time of children */
+                    clock_t tms_cstime; /* system time of children */
+                };
+        All times reported are in clock ticks. The number of clock ticks per second can be obtained using sysconf(_SC_CLK_TCK);
+
+    Another option is getrusage: $ man getrusage
+        struct timeval ru_utime; /* user CPU time used */
+        struct timeval ru_stime; /* system CPU time used */
+
+64)
+    Timing Measurements in Linux Kernel: Many computer activities are based on timing measurements. E.g. Your Computer display is turned off, if you have not pressed a key or moved your mouse for a particular time. Linux timing subsystem mainly handles two types of timing activities:
+        1. Keeping the current time and date
+            a. time() , gettimeofday() and clock_gettime()
+            b. Time stamps for files and network packets
+        2. Maintaining Timers
+            a. Mechanisms to notify kernel and user space (ex. alarm()) that a certain interval of time has elapsed.
+
+    Hardware Devices: Linux depends on hardware devices to maintain time. These devices can be basically classified into two types:
+        1. Clocks/Counters:  provide precise time measurements. Used to keep track of current time of day
+        2. Timers: Issue interrupts at fixed, predefined frequency. Used for implementing software timers
+
+    RTC (Real Time Clock): All PC's include a clock called Real Time Clock (RTC). It is independent of CPU and all other chips. It is backed by a small battery, which will allow it to tick even when the system is turned off. On boot, the kernel reads the RTC and uses it to initialize the wall time. The kernel does not typically read the value again. Can be accessed using /dev/rtc* file. Reading and setting the RTC is then done via calls to ioctl.
+
+    Access RTC through command line: To get what is stored in the RTC hardware clock execute as superuser:$ hwclock
+
+    To set the hardware clock to some date and time you can use: hwclock --set --date="10/08/89 13:19:00"
+        $hwclock --debug
+        dmesg | grep rtc
+    status information of rtc is exposed through /proc/driver/rtc
+
+    Why Real Time clock is not used after computer is powered on? The RTC is not used often because its registers are very slow to access.
+
+    Time Stamp Counter (TSC): The time stamp counter (TSC) is a hardware feature found on a number of contemporary processors. The TSC is a special register which is simply incremented every clock cycle. Eg. If clock is 2GHz, the counter will increment twice per nanosecond. Since the clock is the fundamental unit of time as seen by the processor, the TSC provides the highest-resolution timing information available for that processor. It can thus be used for a number of applications, such as measuring the exact time cost of specific instructions or operations.
+        $ dmesg | grep tsc
+
+    Issues using TSC's with multi processor systems:
+        1. each core had its own TSC, in order to be sure that two measurements were accurate relative to each
+        other, it was neccessary to pin the measuring code to a single core.
+        2. the TSC would run at the frequency of the CPU itself: if that changed due to power management, the TSC ON that CPU would also slow down or stop.
+    Both of these problems are solved in more recent CPUs:
+        • a constant TSC keeps all TSC’s synchronized across all cores in a system,
+        • an invariant (or nonstop) TSC keeps the TSC running at a fixed rate regardless of changes in CPU frequency
+
+    How to check whether my CPU supports this:
+        $ cat /proc/cpuinfo | grep -i tsc
+            Flag            Meaning
+            tsc             The system has a TSC clock.
+            rdtscp          The RDTSCP instruction is available.
+            constant_tsc    The TSC is synchronized across all sockets/cores.
+            nonstop_tsc     The TSC is not affected by power management code.
+
+    The Timestamp Counter is a 64-bit internal register which is present in all Intel processors after the Pentium. It stores the number of cycles executed by the CPU after the latest reset. The time-stamp counter can be read by software using the RDTSC instruction
+
+65)
+    Programmable Interval Timer(PIT): In embedded systems, a programmable interval timer (PIT) is a counter that generates an output signal when it reaches a programmed count. The output signal may trigger an interrupt. PIT's may be:
+        One-Shot: Signal only once and stop counting
+        Periodic: Signal every time they reach a specific value and restart
+
+    HPET (High Precision Event Timer): HPET is a timer chip developed by Intel and Microsoft. An HPET chip consists of a 64-bit up-counter (main counter) counting at a frequency of at least 10 MHz, and a set of (at least three, up to 256) comparators. These comparators are 32- or 64-bit-wide. Each comparator can generate an interrupt when the least significant bits are equal to the corresponding bits of the 64-bit main counter value. The comparators can be put into one-shot mode or periodic mode which means interrupts can be generated either once or periodically. The HPET is programmed via a memory mapped I/O and have relocatable address space. During system bootup, the BIOS sets up the registers address space and passes it to the kernel.
+        $ sudo cat /proc/iomem | grep -i hpet
+
+66)
+    HZ.
+
+    We know Linux works with timer interrupt. But how often should the interrupt trigger? The frequency of the timer interrupt is programmed on system boot based on static preprocessor define HZ.
+        Example: If HZ = 100, Frequency = 100 hz, interrupt happens every 1/100 of second = 10ms
+    The value of HZ differs for each supported architecture. Kernel defines the value in <asm/param.h>
+        $ vi include/asm-generic/param.h
+
+    How to check the value of HZ in the terminal?
+        $ grep 'CONFIG_HZ=' /boot/config-$(uname -r)
+
+    jiffies: Kernel maintains a global variable called "jiffies" which holds the number of ticks/timer interrupts from system boot. Every time a timer interrupt occurs, the value of an internal kernel counter is incremented.
+        Header File: <linux/jiffies.h>
+        extern unsigned long volatile jiffies;
+
+    What is the size of jiffies: As jiffies is unsigned long.
+        On 32-bit architectures size = 4 bytes
+        On 64-bit architectures size = 8 bytes
+
+    If the tick rate(HZ) is 100, 32-bit jiffies variable will overflow in about 497 days. If the tick rate(HZ) is 1000, 32-bit jiffies variable will overflow in about 49.7 days. Solution to avoid overflow is to store jiffies in 64-bit variable on all architectures.
+
+    Why is jiffies not been directly declared as 64-bit unsigned long long integer on x86? Why is jiffies not been directly declared as 64-bit unsigned long long integer on x86?
+        Access to 64-bit variables in 32-bit architectures cannot be done atomically.
+
+    Every read operation on the whole 64-bit requires some synchronization technique to ensure that the counter is not updated while the two 32-bit half counters are read. A second variable is also defined in <linux/jiffies.h>
+        extern u64 jiffies_64;
+
+    In the case of x86 the jiffies will be the lower 32 bits of the jiffies_64 variable.
+                        jiffies_64
+    +-----------------------------------------------------+
+    |                       |                             |
+    |                       |                             |
+    |                       |       jiffies on `x86`      |
+    |                       |                             |
+    |                       |                             |
+    +-----------------------------------------------------+
+    63                     31                             0
+
+    Code that accesses jiffies simply reads the lower 32 bits of jiffies_64. The function get_jiffies_64() can be used to read the full 64-bit value.
+        Defined in : kernel/time/jiffies.c
+            #if (BITS_PER_LONG < 64)
+            u64 get_jiffies_64(void)
+            {
+                    unsigned int seq;
+                    u64 ret;
+
+                    do {
+                            seq = read_seqbegin(&jiffies_lock);
+                            ret = jiffies_64;
+                    } while (read_seqretry(&jiffies_lock, seq));
+                    return ret;
+            }
+            EXPORT_SYMBOL(get_jiffies_64);
+            #endif
+    On 64-bit architectures, jiffies_64 and jiffies refer to the same thing. Code can either read jiffies or call get_jiffies_64() as both actions have the same effect.
+
+    Jiffies Wraparound: The jiffies variable, like any C integer experiences overflow when its value is increased beyond its maximum storage limit. For a 32-bit unsigned integer, the maximum value is 2^32 - 1. When the tick count is equal to the maximum and it is incremented, it wraps around to zero. What happens if jiffies wrapped back to zero after setting timeout?
+        unsigned long timeout = jiffies + 10 * HZ;
+            if (timeout  > jiffies)
+    Then the first condition will fail because the jiffies value would be smaller than timeout despite logically being larger.
+
+    Kernel provides four macros for comparing tick counts that correctly handle the wrap around in the tick count.
+        #define time_after(a,b)         \
+                (typecheck(unsigned long, a) && \
+                 typecheck(unsigned long, b) && \
+                 ((long)((b) - (a)) < 0))
+        #define time_before(a,b)        time_after(b,a)
+
+        #define time_after_eq(a,b)      \
+                (typecheck(unsigned long, a) && \
+                 typecheck(unsigned long, b) && \
+                 ((long)((a) - (b)) >= 0))
+        #define time_before_eq(a,b)     time_after_eq(b,a)
+    time_after(a,b) returns true if the time a is after time b
+
+    Ex: time_after(10, 20) = (20 - 10) < 0 = 10 < 0 = false
+        time_after(20, 10) = (10 - 20) < 0 = -10 < 0 = true
+
+    time_before(a,b) returns true if the time a is before time b
+    time_after_eq(a,b) returns true if the time a is after or equal to time b
+    time_before_eq(a,b) returns true if the time a is before or equal to time b
+
+    What is the initial value of jiffies on boot? At boot time jiffies is not initialized to zero, it is initialized to INITIAL_JIFFIES constant.
+        Header File: <linux/jiffies.h>
+          /*
+           * Have the 32 bit jiffies value wrap 5 minutes after boot
+           * so jiffies wrap bugs show up earlier.
+           */
+           #define INITIAL_JIFFIES ((unsigned long)(unsigned int) (-300*HZ))
+    some bugs where found that occurred when the jiffies counter overflowed (wrapped back to zero). By initializing jiffies so the counter overflows after 5 mins, anybody testing a patch that creates a new jiffy-overflow-related bug  will see the problem during normal testing - and fix it. since it uses negative value while jiffies will be read as unsigned integer, it will be read as "very big" positive number. Thus, it will reach the upper limit of integer very quickly.
+
+    How -300*HZ wraps 5 minutes after boot ? HZ is the number of clock ticks (jiffies) in 1 second. 300 seconds is 5 minutes. Therefore 300 x HZ is the number of jiffies in 5 minutes. Therefore after 5 minutes, an initial value of -300 * HZ will have been incremented to 0.
+
+    Why do we have double casting in the below code.
+        #define INITIAL_JIFFIES ((unsigned long)(unsigned int) (-300*HZ))
+    the negative signed int (-300*HZ) is converted to an unsigned int with sign extension to whatever size an unsigned int is on that implementation (typically 32 bits). then the second cast (to unsigned long) casts that up to the size of an unsigned long (32 or 64 bits depending on implementation) with zero extension. In the case of 32 bit unsigned long, the second (leftmost) cast does nothing. In the case of 64 bit unsigned long, the second cast would cause the upper 32 bits to be set to 0.
+
+    How can i convert jiffies in seconds/milliseconds? Jiffies can be converted to other time units such as milliseconds, microseconds, and nanoseconds using routines jiffies_to_msecs(), jiffies_to_usecs(), jiffies64_to_nsecs().
+        unsigned int jiffies_to_msecs(const unsigned long j);
+        unsigned int jiffies_to_usecs(const unsigned long j);
+        u64 jiffies_to_nsecs(const unsigned long j);
+            Header File: <linux/jiffies.h>
+            Definition: kernel/time/time.c
+
+67)
+    Can i write to jiffies? yes, but the jiffies value is used internally by the scheduler, so bad things can happen modifying it.
+
+    Timer Interrupt Processing: Constitutes of two parts
+        a) Architecture Dependent
+        b) Architecture Independent
+
+    Architecture Dependent: For x86: arch/x86/kernel/time.c (Interrupt Handler for PIT/HPET)
+            /*
+             * Default timer interrupt handler for PIT/HPET
+             */
+            static irqreturn_t timer_interrupt(int irq, void *dev_id)
+            {
+                    global_clock_event->event_handler(global_clock_event);
+                    return IRQ_HANDLED;
+            }
+        This finally calls architecture independent code
+
+    Architecture Independent: Code: kernel/time/tick-common.c (tick_handle_periodic, tick_periodic). It does the following:
+        1. Increment jiffies64
+            void do_timer(unsigned long ticks)
+            {
+                    jiffies_64 += ticks;
+                    calc_global_load(ticks);
+            }
+        2. Update statistics for the currently running process and the entire system (load average).
+            void update_process_times(int user_tick);
+        3. Run dynamic timers
+        4. Run scheduler_tick() (Update timeslices information)
+
+    Busy Waiting/Busy Looping: You can use jiffies to implement busy looping. Spin in a loop until the desired number of clock ticks/jiffies pass.
+
+    Problem with this approach: The processor is tied up spinning in a silly loop—no useful work is accomplished!
+
+    Better Solution: Reschedule your process to allow the processor to accomplish other work while your code waits.
+        while (time_before(jiffies, delay))
+            cond_resched();
+    This solution conditionally invokes the scheduler only if there is some more important task to run. Note: Cannot use it from an interrupt handler, only in process context.
+
+    Jiffie Conversions: User space programs represent time values with struct timeval and struct timespec. The kernel exports four helper functions to convert time values expressed as jiffies to and from those structures.
+        Header File: #include <linux/time.h>
+            unsigned long timespec_to_jiffies(struct timespec *value);
+            void jiffies_to_timespec(unsigned long jiffies, struct timespec *value);
+            unsigned long timeval_to_jiffies(struct timeval *value);
+            void jiffies_to_timeval(unsigned long jiffies, struct timeval *value);
+
+    How are busy loops implemented? kernel provides three functions for microsecond, nanosecond, and millisecond delays, defined in <linux/delay.h> and <asm/delay.h>
+        void udelay(unsigned long usecs); //delays execution by busy looping for specified number of microseconds
+        void ndelay(unsigned long nsecs); //delays execution by busy looping for specified number of nanoseconds
+        void mdelay(unsigned long msecs); //delays execution by busy looping for specified number of milliseconds
+
+    We know, 1 second = 1,000 milliseconds = 1,000,000 microseconds
+
+    How is udelay implemented? They cannot use jiffies, as jiffies provide resolution in millisecond. On boot, kernel runs a function calibrate_delay() present in init/calibrate.c file. This function calculates and prints the value of "BogoMips". BogoMips value is the number of busy loop iterations the processor can perform in a given period. This value is stored in the loops_per_jiffy variable.
+        $ cat /proc/cpuinfo | grep bogomips
+        $ dmesg | grep -i bogo
+
+    udelay() uses the loops_per_jiffy value to figure out how many busy loop iterations they need to execute to provide the required delay. mdelay() is then implemented in terms of udelay().
+        Note: BogoMIPS have little to nothing to do with actual processor performance
+
+    What is the disadvantage of having periodic ticks/interrupts in linux kernel ? The timer interrupts are good but has one major issue: Power consumption.
+        With HZ option, kernel is interrupted HZ times per second in order to reschedule tasks. If HZ is set to 1000, there will be 1000 timer interrupts per second. This timer tick happens periodically irrespective of the processor state (idle vs busy). If the processor is idle, it has to wake up from its power saving sleep state every 1ms (if HZ=1000). Thus power consumption is increased.
+
+    Dynamic Ticks/Tickless: Tickless/Dynamic Ticks is designed to solve the problem. In this case, kernel will program timers to only fire when necessary. Kernel sets timers up to fire at varying intervals depending on its requirements. Fewer interrupts means fewer wakeups, which means idle CPU's can be kept in low-power modes for longer periods, which saves energy. This feature significantly improves battery life in laptops.
+
+    There are three main ways of managing scheduling-clock interrupts (clock ticks/ticks) ?
+        1. Never omit scheduling-clock ticks
+            CONFIG_HZ_PERIODIC=y or
+            CONFIG_NO_HZ=n (on older CPUs)
+        2. Omit ticks on Idle CPUs
+            CONFIG_NO_HZ_IDLE=y or
+            CONFIG_NO_HZ=n (on older CPUs)
+            Most common approach, should be default
+        3. Omit ticks on CPUs that are idle or that have only one runnable task
+            CONFIG_NO_HZ_FULL=y
+            Useful for real time application
+
+    CONFIG_HZ_PERIODIC=y. Used by older versions from 1990s to 2000s
+
+    Which scenarios this approach is useful?
+        - heavy workloads with lots of tasks that use short bursts of CPU
+        - where there are very frequent idle periods
+        - but where these idle periods are also quite short (tens or hundreds of microseconds).
+
+    Which scenarios this approach is not useful?
+        - running a light workload with long idle periods
+        - scheduling-clock interrupts will result in excessive power consumption
+        - bad on battery-powered devices, where it results in extremely short battery lifetimes
+    if you are running either a real-time workload or an HPC workload with short iterations the scheduling-clock interrupts can degrade your applications performance.
+
+    CONFIG_NO_HZ_IDLE=y.  Primary purpose of clock interrupt is to force a busy CPU to shift its attention among multiple duties. If a CPU is idle, there is little point in sending it a scheduling-clock interrupt. The CONFIG_NO_HZ_IDLE=y Kconfig option causes the kernel to avoid sending scheduling-clock interrupts to idle CPUs.
+
+    Advantage: A battery-powered device running a CONFIG_HZ_PERIODIC=y kernel would drain its battery very quickly, easily 2-3 times as fast as would the same device running a CONFIG_NO_HZ_IDLE=y kernel.
+
+    Problems with this approach:
+        1. It increases the number of instructions executed on the path to and from the idle loop.
+        2. On many architectures, dyntick-idle mode also increases the  number of expensive clock-reprogramming operations.
+
+    CONFIG_NO_HZ_FULL=y.  If a CPU has only one runnable task, there is little point in sending it a scheduling-clock interrupt because there is no other task to switch to. Note that omitting scheduling-clock ticks for CPUs with only one runnable task implies also omitting them for idle CPUs.
+
+    Adaptive-ticks CPU: kernel avoiding sending scheduling-clock interrupts to CPUs with a single runnable task are called adaptive-tick cpu.
+
+    Advantage for: applications with aggressive real-time response constraints because it allows them to improve their worst-case response times by the maximum duration of a scheduling-clock interrupt
+
+68)
+    Kernel Timers: Used to schedule execution of a function at a particular time in the near future
+
+    Usages:
+        1. Implementations of timeouts (schedule_timeout)
+        2. Wait timeouts in TCP Implementation
+
+    A timer is easy to use:
+        1. Perform initialization
+        2. Specify an expiration time
+        3. A function to execute upon said expiration
+        4. Activate the timer
+    The given function runs after the timer expires
+    Note: Timers are not cyclic. The timer is destroyed after it expires
+
+    Types of Timers:
+        1. Low Resolution Timer
+        2. High Resolution Timer
+
+    Initialization:
+        Static:
+            DEFINE_TIMER()
+            #define DEFINE_TIMER(_name, _function)                          \
+                    struct timer_list _name =                               \
+                            __TIMER_INITIALIZER(_function, 0)
+        Dynamic:
+            void timer_setup( struct timer_list *timer, void (*function)(unsigned long), unsigned int flags);
+
+    Setting up expiration time: When the timer is initialized, we need to set its expiration before the callback gets fired.
+        int mod_timer( struct timer_list *timer, unsigned long expires);
+    The expires field represents the jiffies value when the timer is expected to run. The kernel runs the timer handler when the current tick count is equal to or greater than the specified expiration. Although the kernel guarantees to run no timer handler prior to the timer’s expiration, there may be a delay in running the timer.
+
+    Conversions from jiffies to seconds/nanoseconds:
+        struct timeval {
+            time_t tv_sec; /* seconds */
+            suseconds_t tv_usec; /* microseconds */
+        };
+        struct timespec {
+            time_t tv_sec; /* seconds */
+            long tv_nsec; /* nanoseconds */
+        };
+    The timeval_to_jiffies and jiffies_to_timeval functions are used to convert between this representation and a jiffies value.
+        Header File: <timer.h>
+
+    Guess in which context timer handler runs? it runs in interrupt context, not in process context.
+
+    Timer Implementation: The kernel executes timers in bottom-half context, as softirqs, after the timer interrupt completes. The timer interrupt handler runs update_process_times(), which calls run_local_timers():
+        void run_local_timers(void)
+        {
+            .....
+            raise_softirq(TIMER_SOFTIRQ); /* raise the timer softirq */
+        }
+    The TIMER_SOFTIRQ softirq is handled by run_timer_softirq().This function runs all the expired timers (if any) on the current processor.
+
+    Are interrupts disabled while running timer handler? soft irqs runs with interrupts enabled, so interrupts are enabled while running timer handler. /* soft irq context, not in hard irq */
+
+    Does kernel checks all the timer entries in linked list on each raise softirq? The kernel partitions timers into five groups based on their expiration value. Timers move down through the groups as their expiration time draws closer. The partitioning ensures that, in most executions of the timer softirq, the kernel has to do little work to
+    find the expired timers.
+
+    del_timer deactivates a timer.
+        int del_timer(struct timer_list *timer);
+            The function returns whether it has deactivated a pending timer or not. del_timer() of an inactive timer returns 0. del_timer() of an active timer returns 1.
+
+    del_timer_sync:
+        int del_timer_sync(struct timer_list *timer)
+            deactivate a timer and wait for the handler to finish. This function only differs from del_timer() on SMP. The function returns whether it has deactivated a pending timer or not.
+
+    Differences between del_timer and del_timer_sync: guarantees that when it returns, the timer function is not running on any CPU. del_timer_sync is used to avoid race conditions on SMP systems as timers run asynchronously with respect to the currently executing code, several potential race conditions exist.
+
+    timer_pending: timer_pending will tell whether a given timer is currently pending or not.
+        return value: 1 if the timer is pending, 0 if not
+
+    Periodic timers: You can make the timer periodic by calling mod_timer in the timer handler.
+
+    How can i synchronize between process context and timer handler? You need to use spin_lock API.
+
+    Timer Flags:
+        - TIMER_DEFERRABLE: A deferrable timer will work normally when the system is busy but will not cause a CPU to come out of idle just to service it. the timer will be serviced when the CPU eventually wakes up with a subsequent non-deferrable timer.
+        - TIMER_IRQSAFE: An irqsafe timer is executed with IRQ disabled. with this, it will run with IRQ disabled
+
+    schedule_timeout:
+        long schedule_timeout (signed long timeout);
+            Make the current task sleep until timeout jiffies have elapsed.
+        Implementation: It internally uses kernel timers
+            File: kernel/time/timer.c
+
+    Problems with low resolution timers:
+        1. Low resolution timers: in Linux are only supported at a resolution of 1 jiffy. The length of a jiffy is dependent on the value of HZ in the Linux kernel.
+        2. Multimedia applications: timer resolution of several milliseconds is not good enough. need very precise timekeeping, for instance, to avoid frame skips in videos, or jumps during audio playback
+
+    Implementation of low resolution timers: Timers are organized on lists, and the following data structure represents a timer on a list:
+        Data Structure:
+            struct timer_list;
+            Header File: <linux/timer.h>
+            Implementation: kernel/timer.c
+                struct timer_list {
+                        /*
+                         * All fields that change during normal runtime grouped to the
+                         * same cacheline
+                         */
+                        struct hlist_node       entry;
+                        unsigned long           expires;
+                        void                    (*function)(struct timer_list *);
+                        u32                     flags;
+                };
+            function saves a pointer to the callback function invoked upon time-out expires specifies the time, in jiffies, at which the timer expires.
+
+    Use cases in Linux Kernel: Timers are used to detect when a device or a network peer has failed to respond within the expected time; when, as usual, the expected response does happen, the timer is canceled
+
+69)
+    Problem with Low res timers: Low resolution timers  in Linux are only supported at a resolution of 1 jiffy. The length of a jiffy is dependent on the value of HZ in the Linux kernel. It is 1 millisecond on i386 and some other platforms, and 10 milliseconds on most embedded platforms. These are not suited for real-time applications.
+
+    High Resolution Timers: Verify whether your kernel has support for High Res timers or not:
+        $ cat /boot/config-`uname -r` | grep CONFIG_HIGH_RES_TIMERS
+    You can also examine the timer_list, and see whether specific clocks are listed as supporting high resolution:
+        $ sudo cat /proc/timer_list | grep resolution
+
+    The .resolution entry must show 1 nsecs and the event_handler must show hrtimer_interrupts. Low Res timers are based on HZ(Jiffies), whereas High Res Timers based on ktime_t.
+        Example of Low Resolution Timers: PIT
+        Example of High Resolution Timers: LAPIC
+
+    ktime_t: Data structure used to store a time value in nanoseconds.
+        Header File : <linux/ktime.h>
+    On 64-bit systems, a ktime_t is really just a 64-bit integer value in nanoseconds
+        typedef s64     ktime_t;
+    On 32-bit machines, however, it is a two-field structure:
+        one 32-bit value holds the number of seconds and the other holds nanoseconds. The order of the two fields depends on whether the host architecture is big-endian or not. they are always arranged so that the two values can, when needed, be treated as a single, 64-bit value.
+
+    Macros/functions on ktime_t: A whole set of functions and macros has been provided for working with ktime_t values. There are two ways of initializing them.
+        1. DEFINE_KTIME(name);   /* Initialize to zero */ (not present)
+        2. ktime_t kt;
+            kt = ktime_set(long secs, long nanosecs);
+                static inline ktime_t ktime_set(const s64 secs, const unsigned long nsecs)
+                {
+                        if (unlikely(secs >= KTIME_SEC_MAX))
+                                return KTIME_MAX;
+
+                        return secs * NSEC_PER_SEC + (s64)nsecs;
+                }
+                Return the ktime_t representation of the value
+
+    ktime_t macros/functions: Various other functions exist for changing ktime_t values.
+        ktime_t ktime_add(ktime_t kt1, ktime_t kt2);
+        ktime_t ktime_sub(ktime_t kt1, ktime_t kt2);  /* kt1 - kt2 */
+        ktime_t ktime_add_ns(ktime_t kt, u64 nanoseconds);
+    All of these treat their arguments as read-only and return a ktime_t value as their result
+
+    ktime accessors:
+        ktime_t ktime_get_real(void);
+        Header file: <linux/timekeeping.h>
+        Clock used: CLOCK_REALTIME
+            Returns the time in relative to the UNIX epoch starting in 1970 using the Coordinated Universal Time (UTC), same as gettimeofday() user space
+            Use cases: timestamps that need to persist across a reboot, like inode times
+        should be avoided for internal uses, since it can jump backwards due to a leap second update, NTP adjustment settimeofday() operation from user space.
+
+70)
+    nanosecond output:
+        u64 ktime_get_ns(void);
+        u64 ktime_get_boottime_ns(void);
+        u64 ktime_get_real_ns(void);
+    Same as the plain ktime_get functions, but returning a u64 number of nanoseconds in the respective time reference, which may be more convenient for some callers.
+
+    Coarse variants:
+            ktime_t ktime_get_coarse_boottime(void);
+            ktime_t ktime_get_coarse_real(void);
+
+            u64 ktime_get_coarse_boottime_ns(void);
+            u64 ktime_get_coarse_real_ns(void);
+
+            void ktime_get_coarse_ts64(struct timespec64 *);
+            void ktime_get_coarse_boottime_ts64(struct timespec64 *);
+            void ktime_get_coarse_real_ts64(struct timespec64 *);
+        These are quicker than the non-coarse versions, but less accurate.
+
+    Why is coarse variants faster than non-coarse variants: ktime_get() (unlike the ktime_get_coarse()) eventually invokes timekeeping_get_delta() which reads clocksource with tk_clock_read(). They doesn't read the hardware instead they read from a global timekeeping structure, which gets updated every timer tick. This can be 10ms in the past. Skipping the hardware clock access saves around 100 CPU cycles on most modern machines with a reliable cycle counter, but up to several microseconds on older hardware with an external clocksource.
+
+71)
+    Data Structures: hrtimers live on a time-sorted linked list, with the next timer to expire being at the head of the list. A separate red/black tree is also used to enable the insertion and removal of timer events without scanning through the list.
+        Header File: <linux/hrtimer.h>
+        Data Structures: struct hrtimer
+        Implementation: kernel/time/hrtimer.c
+        Documentation: Documentation/timers/hrtimer.txt
+            struct hrtimer {
+                    struct timerqueue_node          node;
+                    ktime_t                         _softexpires;
+                    enum hrtimer_restart            (*function)(struct hrtimer *);
+                    struct hrtimer_clock_base       *base;
+                    u8                              state;
+                    u8                              is_rel;
+                    u8                              is_soft;
+            };
+        node is used to keep the timer on red-black tree. base points to the timer base. softexpires is expiration time. function is callback function.
+
+    clocks: Every hrtimer is bound to a specific clock. The system currently supports two clocks:
+        1. CLOCK_MONOTONIC:
+            a clock which is guaranteed always to move forward in time
+            it starts at zero when the system boots and increases monotonically from there
+        2. CLOCK_REALTIME:
+            matches the current real-world time
+
+    The difference between the two clocks can be seen when the system time is adjusted
+        - as a result of administrator action
+        - tweaking by the network time protocol code
+        - suspending and resuming the system.
+
+    In any of these situations,
+        CLOCK_MONOTONIC will tick forward as if nothing had happened
+        CLOCK_REALTIME may see discontinuous changes.
+
+    Which clock to be used? Depends mainly on whether the timer needs to be tied to time as the rest of the world sees it or not
+
+    Initialization: void hrtimer_init(struct hrtimer *timer, clockid_t clock_id, enum hrtimer_mode mode);
+        timer:      the timer to be initialized
+        clock_id:   the clock to be used. Every hrtimer is bound to a specific clock
+        mode:       The modes which are relevant for intitialization
+
+    clock_id:
+        #define CLOCK_REALTIME                  0
+        #define CLOCK_MONOTONIC                 1
+        #define CLOCK_PROCESS_CPUTIME_ID        2
+        #define CLOCK_THREAD_CPUTIME_ID         3
+        #define CLOCK_MONOTONIC_RAW             4
+        #define CLOCK_REALTIME_COARSE           5
+        #define CLOCK_MONOTONIC_COARSE          6
+        #define CLOCK_BOOTTIME                  7
+        #define CLOCK_REALTIME_ALARM            8
+        #define CLOCK_BOOTTIME_ALARM            9
+
+    mode:
+        HRTIMER_MODE_ABS             - Time value is absolute
+        HRTIMER_MODE_REL             - Time value is relative to now
+        HRTIMER_MODE_PINNED          - Timer is bound to CPU (is only considered when starting the timer)
+        HRTIMER_MODE_SOFT            - Timer callback function will be executed in soft irq context
+
+    Setting a timer:
+        static inline void hrtimer_start(struct hrtimer *timer, ktime_t tim, const enum hrtimer_mode mode);
+            timer:      the timer to be added
+            tim:        expiry time
+            mode:       timer mode: absolute (HRTIMER_MODE_ABS) or
+                                    relative (HRTIMER_MODE_REL)
+        $ sudo cat /proc/timer_list | grep my_hrtimer_function -C 3
+
+    hrtimer_cancel: cancel a timer
+        int hrtimer_cancel(struct hrtimer *timer);
+        Returns:
+                0 when the timer was not active
+                1 when the timer was active
+
+    Return value of callback function:
+        HRTIMER_NORESTART   -  for a one-shot timer which should not be started again
+        HRTIMER_RESTART     -  for a recurring timer
+    In the restart case, the callback must set a new expiration time before returning. Usually, restarting timers are used by kernel subsystems which need a callback at a regular interval. The hrtimer code provides a function for advancing the expiration time to the next such interval:
+        unsigned long hrtimer_forward(struct hrtimer *timer, ktime_t now, ktime_t interval);
+            timer:      hrtimer to forward
+            now:        forward past this time
+            interval:   the interval to forward
+        Returns the number of overruns.
+
+    hrtimer_forward_now: Forward the timer expiry so it will expire after the current time of the hrtimer clock base. Returns the number of overruns.
+        static inline u64 hrtimer_forward_now(struct hrtimer *timer, ktime_t interval);
+
+    hrtimer_callback_running:
+        static inline int hrtimer_callback_running(struct hrtimer *timer);
+            Helper function to check, whether the timer is running the callback function
+            Return: 1 if the callback is running, 0 if the callback is not running
+
+    hrtimer_restart: A canceled timer can be restarted by passing it to hrtimer_restart().
+        void hrtimer_restart(struct hrtimer *timer);
+
+    hrtimer_get_remaining:
+        ktime_t hrtimer_get_remaining(const struct hrtimer *timer);
+            returns the amount of time left before a timer expires
+
+    hrtimer_interrupt: When the clock event device responsible for high-resolution timers raises an interrupt, hrtimer_interrupt is called as event handler
+
+    How can i wait for few usecs in linux kernel ?
+        - Backed by busy-wait loop: udelay(unsigned long usecs)
+        - Backed by hrtimers: usleep_range(unsigned long min, unsigned long max)
+
+    Why is there no usleep / What is a good range? Since usleep_range is built on top of hrtimers, the wakeup will be very precise, thus a simple usleep function would likely introduce a large number of undesired interrupts.
